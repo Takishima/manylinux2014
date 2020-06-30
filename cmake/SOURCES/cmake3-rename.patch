@@ -1,0 +1,1180 @@
+Author: Björn Esser <me@besser82.io>
+Date:   Tue Aug 23 13:35:29 2016 +0200
+
+Modified by sagitter <sagitter@fedoraproject.org>
+Date    Sun Apr 26 2020
+
+    cmake3-rename.patch
+
+diff --git a/Auxiliary/CMakeLists.txt b/Auxiliary/CMakeLists.txt
+index c003b28..f1e9f42 100644
+--- a/Auxiliary/CMakeLists.txt
++++ b/Auxiliary/CMakeLists.txt
+@@ -1,4 +1,7 @@
+-install(DIRECTORY vim/indent vim/syntax DESTINATION ${CMAKE_DATA_DIR}/editors/vim)
+-install(FILES cmake-mode.el DESTINATION ${CMAKE_DATA_DIR}/editors/emacs)
+-install(FILES cmake.m4 DESTINATION ${CMAKE_XDGDATA_DIR}/aclocal)
++#foreach(_file cmake-help.vim cmake-indent.vim cmake-syntax.vim)
++#  string(REPLACE "cmake" "cmake3" new_name "${_file}")
++#  install(FILES ${_file} DESTINATION ${CMAKE_DATA_DIR}/editors/vim RENAME ${new_name})
++#endforeach(_file cmake-help.vim cmake-indent.vim cmake-syntax.vim)
++install(FILES cmake-mode.el DESTINATION ${CMAKE_DATA_DIR}/editors/emacs RENAME cmake3-mode.el)
++install(FILES cmake.m4 DESTINATION share/aclocal RENAME cmake3.m4)
+ add_subdirectory (bash-completion)
+--- a/Auxiliary/cmake-mode.orig.el	2019-07-16 13:19:54.000000000 +0200
++++ b/Auxiliary/cmake-mode.el	2019-08-30 12:46:28.956582109 +0200
+@@ -12,8 +12,8 @@
+ ;;
+ ;; Add this code to your .emacs file to use the mode:
+ ;;
+-;;  (setq load-path (cons (expand-file-name "/dir/with/cmake-mode") load-path))
+-;;  (require 'cmake-mode)
++;;  (setq load-path (cons (expand-file-name "./cmake3-mode") load-path))
++;;  (require 'cmake3-mode)
+ 
+ ;------------------------------------------------------------------------------
+ 
+diff --git a/Auxiliary/bash-completion/CMakeLists.txt b/Auxiliary/bash-completion/CMakeLists.txt
+index c0a8899..bb7ce47 100644
+--- a/Auxiliary/bash-completion/CMakeLists.txt
++++ b/Auxiliary/bash-completion/CMakeLists.txt
+@@ -5,4 +5,7 @@
+ # add symlinks to the files in appropriate places
+ #  /etc/bash_completion.d/
+ #  DATADIR/completions (may be /usr/share/<package>/completions
+-install(FILES cmake cpack ctest DESTINATION ${CMAKE_DATA_DIR}/completions)
++foreach(_file cmake cpack ctest)
++  set(new_name "${_file}3")
++  install(FILES "${_file}" DESTINATION ${CMAKE_DATA_DIR}/completions RENAME ${new_name})
++endforeach(_file cmake cpack ctest)
+diff --git a/Auxiliary/bash-completion/cmake b/Auxiliary/bash-completion/cmake
+index 6061129..5e6277e 100644
+--- a/Auxiliary/bash-completion/cmake
++++ b/Auxiliary/bash-completion/cmake
+@@ -1,6 +1,6 @@
+-# bash completion for cmake(1)                             -*- shell-script -*-
++# bash completion for cmake3(1)                             -*- shell-script -*-
+ 
+-_cmake()
++_cmake3()
+ {
+     local cur prev words cword split=false
+     if type -t _init_completion >/dev/null; then
+@@ -42,7 +42,7 @@ _cmake()
+                     type="${cur#*:}"
+                     type="${type%%=*}"
+                 else # get type from cache if it's not set explicitly
+-                    type=$( cmake -LA -N 2>/dev/null | grep "$var:" \
++                    type=$( cmake3 -LA -N 2>/dev/null | grep "$var:" \
+                         2>/dev/null )
+                     type="${type#*:}"
+                     type="${type%%=*}"
+@@ -83,7 +83,7 @@
+             return
+             ;;
+         -U)
+-            COMPREPLY=( $( compgen -W '$( cmake -LA -N | tail -n +2 |
++            COMPREPLY=( $( compgen -W '$( cmake3 -LA -N | tail -n +2 |
+                 cut -f1 -d: )' -P "$prefix" -- "$cur" ) )
+             return
+             ;;
+@@ -101,7 +101,7 @@
+             return
+             ;;
+         -E)
+-            COMPREPLY=( $( compgen -W "$( cmake -E help |& sed -n \
++            COMPREPLY=( $( compgen -W "$( cmake3 -E help |& sed -n \
+                 '/^  [^ ]/{s|^  \([^ ]\{1,\}\) .*$|\1|;p}' 2>/dev/null )" \
+                 -- "$cur" ) )
+             return
+@@ -110,7 +110,7 @@
+             local IFS=$'\n'
+             local quoted
+             printf -v quoted %q "$cur"
+-            COMPREPLY=( $( compgen -W '$( cmake --help 2>/dev/null | sed -n \
++            COMPREPLY=( $( compgen -W '$( cmake3 --help 2>/dev/null | sed -n \
+                 -e "1,/^Generators/d" \
+                 -e "/^  *[^ =]/{s|^ *\([^=]*[^ =]\).*$|\1|;s| |\\\\ |g;p}" \
+                 2>/dev/null )' -- "$quoted" ) )
+@@ -120,33 +120,33 @@
+             COMPREPLY=( $(compgen -W 'error warning notice status verbose debug trace' -- $cur ) )
+             ;;
+         --help-command)
+-            COMPREPLY=( $( compgen -W '$( cmake --help-command-list 2>/dev/null|
+-                grep -v "^cmake version " )' -- "$cur" ) )
++            COMPREPLY=( $( compgen -W '$( cmake3 --help-command-list 2>/dev/null|
++                grep -v "^cmake3 version " )' -- "$cur" ) )
+             return
+             ;;
+         --help-manual)
+-            COMPREPLY=( $( compgen -W '$( cmake --help-manual-list 2>/dev/null|
+-                grep -v "^cmake version " | sed -e "s/([0-9])$//" )' -- "$cur" ) )
++            COMPREPLY=( $( compgen -W '$( cmake3 --help-manual-list 2>/dev/null|
++                grep -v "^cmake3 version " | sed -e "s/([0-9])$//" )' -- "$cur" ) )
+             return
+             ;;
+         --help-module)
+-            COMPREPLY=( $( compgen -W '$( cmake --help-module-list 2>/dev/null|
+-                grep -v "^cmake version " )' -- "$cur" ) )
++            COMPREPLY=( $( compgen -W '$( cmake3 --help-module-list 2>/dev/null|
++                grep -v "^cmake3 version " )' -- "$cur" ) )
+             return
+             ;;
+          --help-policy)
+-            COMPREPLY=( $( compgen -W '$( cmake --help-policy-list 2>/dev/null |
+-                grep -v "^cmake version " )' -- "$cur" ) )
++            COMPREPLY=( $( compgen -W '$( cmake3 --help-policy-list 2>/dev/null |
++                grep -v "^cmake3 version " )' -- "$cur" ) )
+             return
+             ;;
+          --help-property)
+-            COMPREPLY=( $( compgen -W '$( cmake --help-property-list \
+-                2>/dev/null | grep -v "^cmake version " )' -- "$cur" ) )
++            COMPREPLY=( $( compgen -W '$( cmake3 --help-property-list \
++                2>/dev/null | grep -v "^cmake3 version " )' -- "$cur" ) )
+             return
+             ;;
+          --help-variable)
+-            COMPREPLY=( $( compgen -W '$( cmake --help-variable-list \
+-                2>/dev/null | grep -v "^cmake version " )' -- "$cur" ) )
++            COMPREPLY=( $( compgen -W '$( cmake3 --help-variable-list \
++                2>/dev/null | grep -v "^cmake3 version " )' -- "$cur" ) )
+             return
+             ;;
+     esac
+@@ -161,6 +161,6 @@
+ 
+     _filedir
+ } &&
+-complete -F _cmake cmake
++complete -F _cmake3 cmake3
+ 
+ # ex: ts=4 sw=4 et filetype=sh
+diff --git a/Auxiliary/bash-completion/cpack b/Auxiliary/bash-completion/cpack
+index cf5751f..1ed1b71 100644
+--- a/Auxiliary/bash-completion/cpack
++++ b/Auxiliary/bash-completion/cpack
+@@ -1,6 +1,6 @@
+-# bash completion for cpack(1)                             -*- shell-script -*-
++# bash completion for cpack3(1)                             -*- shell-script -*-
+ 
+-_cpack()
++_cpack3()
+ {
+     local cur prev words cword
+     if type -t _init_completion >/dev/null; then
+@@ -14,7 +14,7 @@ _cpack()
+ 
+     case "$prev" in
+         -G)
+-            COMPREPLY=( $( compgen -W '$( cpack --help 2>/dev/null |
++            COMPREPLY=( $( compgen -W '$( cpack3 --help 2>/dev/null |
+                 sed -e "1,/^Generators/d" -e "s|^ *\([^ ]*\) .*$|\1|" \
+                 2>/dev/null )' -- "$cur" ) )
+             return
+@@ -26,8 +26,8 @@ _cpack()
+             ;;
+         -D)
+             [[ $cur == *=* ]] && return # no completion for values
+-            COMPREPLY=( $( compgen -W '$( cpack --help-variable-list \
+-                2>/dev/null | grep -v "^cpack version " )' -S = -- "$cur" ) )
++            COMPREPLY=( $( compgen -W '$( cpack3 --help-variable-list \
++                2>/dev/null | grep -v "^cpack3 version " )' -S = -- "$cur" ) )
+             compopt -o nospace
+             return
+             ;;
+@@ -44,8 +44,8 @@ _cpack()
+             return
+             ;;
+         --help-command)
+-            COMPREPLY=( $( compgen -W '$( cpack --help-command-list 2>/dev/null|
+-                grep -v "^cpack version " )' -- "$cur" ) )
++            COMPREPLY=( $( compgen -W '$( cpack3 --help-command-list 2>/dev/null|
++                grep -v "^cpack3 version " )' -- "$cur" ) )
+             return
+             ;;
+         --help-manual)
+@@ -69,8 +69,8 @@ _cpack()
+             return
+             ;;
+         --help-variable)
+-            COMPREPLY=( $( compgen -W '$( cpack --help-variable-list \
+-                2>/dev/null | grep -v "^cpack version " )' -- "$cur" ) )
++            COMPREPLY=( $( compgen -W '$( cpack3 --help-variable-list \
++                2>/dev/null | grep -v "^cpack3 version " )' -- "$cur" ) )
+             return
+             ;;
+     esac
+@@ -83,6 +83,6 @@ _cpack()
+ 
+     _filedir
+ } &&
+-complete -F _cpack cpack
++complete -F _cpack3 cpack3
+ 
+ # ex: ts=4 sw=4 et filetype=sh
+diff --git a/Auxiliary/bash-completion/ctest b/Auxiliary/bash-completion/ctest
+index 49343bb..69affe4 100644
+--- a/Auxiliary/bash-completion/ctest
++++ b/Auxiliary/bash-completion/ctest
+@@ -1,6 +1,6 @@
+-# bash completion for ctest(1)                             -*- shell-script -*-
++# bash completion for ctest3(1)                             -*- shell-script -*-
+ 
+-_ctest()
++_ctest3()
+ {
+     local cur prev words cword
+     if type -t _init_completion >/dev/null; then
+@@ -27,7 +27,7 @@ _ctest()
+             return
+             ;;
+         -L|--label-regex|-LE|--label-exclude)
+-            COMPREPLY=( $( compgen -W '$( ctest --print-labels 2>/dev/null |
++            COMPREPLY=( $( compgen -W '$( ctest3 --print-labels 2>/dev/null |
+                 grep "^  " 2>/dev/null | cut -d" " -f 3 )' -- "$cur" ) )
+             return
+             ;;
+@@ -36,7 +36,7 @@ _ctest()
+             return
+             ;;
+         -R|--tests-regex|-E|--exclude-regex)
+-            COMPREPLY=( $( compgen -W '$( ctest -N 2>/dev/null |
++            COMPREPLY=( $( compgen -W '$( ctest3 -N 2>/dev/null |
+                 grep "^  Test" 2>/dev/null | cut -d: -f 2 )' -- "$cur" ) )
+             return
+             ;;
+@@ -65,7 +65,7 @@ _ctest()
+             return
+             ;;
+         -S|--script|-SP|--script-new-process)
+-            _filedir '@(cmake|ctest)'
++            _filedir '@(cmake3|ctest3)'
+             return
+             ;;
+         --interactive-debug-mode)
+@@ -74,8 +74,8 @@ _ctest()
+             ;;
+ 
+         --help-command)
+-            COMPREPLY=( $( compgen -W '$( ctest --help-command-list 2>/dev/null|
+-                grep -v "^ctest version " )' -- "$cur" ) )
++            COMPREPLY=( $( compgen -W '$( ctest3 --help-command-list 2>/dev/null|
++                grep -v "^ctest3 version " )' -- "$cur" ) )
+             return
+             ;;
+         --help-manual)
+@@ -113,6 +113,6 @@ _ctest()
+ 
+     _filedir
+ } &&
+-complete -F _ctest ctest
++complete -F _ctest3 ctest3
+ 
+ # ex: ts=4 sw=4 et filetype=sh
+--- a/Auxiliary/cmake.orig.m4	2019-07-16 13:19:54.000000000 +0200
++++ b/Auxiliary/cmake.m4	2019-08-30 11:44:52.162852622 +0200
+@@ -5,7 +5,7 @@
+ [AC_ARG_VAR([CMAKE_BINARY], [path to the cmake binary])dnl
+ 
+ if test "x$ac_cv_env_CMAKE_BINARY_set" != "xset"; then
+-    AC_PATH_TOOL([CMAKE_BINARY], [cmake])dnl
++    AC_PATH_TOOL([CMAKE_BINARY], [cmake3])dnl
+ fi
+ ])dnl
+ 
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 787f319..3ef8605 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -176,17 +176,17 @@ macro(CMAKE_SETUP_TESTING)
+     # and not the ctest from the cmake building and testing
+     # cmake.
+     if(CMake_TEST_EXTERNAL_CMAKE)
+-      set(CMAKE_CTEST_COMMAND "${CMake_TEST_EXTERNAL_CMAKE}/ctest")
+-      set(CMAKE_CMAKE_COMMAND "${CMake_TEST_EXTERNAL_CMAKE}/cmake")
+-      set(CMAKE_CPACK_COMMAND "${CMake_TEST_EXTERNAL_CMAKE}/cpack")
++      set(CMAKE_CTEST_COMMAND "${CMake_TEST_EXTERNAL_CMAKE}/ctest3")
++      set(CMAKE_CMAKE_COMMAND "${CMake_TEST_EXTERNAL_CMAKE}/cmake3")
++      set(CMAKE_CPACK_COMMAND "${CMake_TEST_EXTERNAL_CMAKE}/cpack3")
+       foreach(exe cmake ctest cpack)
+         add_executable(${exe} IMPORTED)
+         set_property(TARGET ${exe} PROPERTY IMPORTED_LOCATION ${CMake_TEST_EXTERNAL_CMAKE}/${exe})
+       endforeach()
+     else()
+-      set(CMAKE_CTEST_COMMAND "${CMake_BIN_DIR}/ctest")
+-      set(CMAKE_CMAKE_COMMAND "${CMake_BIN_DIR}/cmake")
+-      set(CMAKE_CPACK_COMMAND "${CMake_BIN_DIR}/cpack")
++      set(CMAKE_CTEST_COMMAND "${CMake_BIN_DIR}/ctest3")
++      set(CMAKE_CMAKE_COMMAND "${CMake_BIN_DIR}/cmake3")
++      set(CMAKE_CPACK_COMMAND "${CMake_BIN_DIR}/cpack3")
+     endif()
+   endif()
+ 
+--- a/Source/CMakeLists.txt
++++ b/Source/CMakeLists.txt
+@@ -1026,9 +1026,9 @@
+ endif()
+ 
+ # Build CMake executable
+-add_executable(cmake cmakemain.cxx cmcmd.cxx cmcmd.h ${MANIFEST_FILE})
+-list(APPEND _tools cmake)
+-target_link_libraries(cmake CMakeLib)
++add_executable(cmake3 cmakemain.cxx cmcmd.cxx cmcmd.h ${MANIFEST_FILE})
++list(APPEND _tools cmake3)
++target_link_libraries(cmake3 CMakeLib)
+ 
+ add_library(CMakeServerLib
+   cmConnection.h cmConnection.cxx
+@@ -1039,17 +1039,17 @@
+   cmServerProtocol.cxx cmServerProtocol.h
+   )
+ target_link_libraries(CMakeServerLib CMakeLib)
+-target_link_libraries(cmake CMakeServerLib)
++target_link_libraries(cmake3 CMakeServerLib)
+ 
+ # Build CTest executable
+-add_executable(ctest ctest.cxx ${MANIFEST_FILE})
+-list(APPEND _tools ctest)
+-target_link_libraries(ctest CTestLib)
++add_executable(ctest3 ctest.cxx ${MANIFEST_FILE})
++list(APPEND _tools ctest3)
++target_link_libraries(ctest3 CTestLib)
+ 
+ # Build CPack executable
+-add_executable(cpack CPack/cpack.cxx ${MANIFEST_FILE})
+-list(APPEND _tools cpack)
+-target_link_libraries(cpack CPackLib)
++add_executable(cpack3 CPack/cpack.cxx ${MANIFEST_FILE})
++list(APPEND _tools cpack3)
++target_link_libraries(cpack3 CPackLib)
+ 
+ # Curses GUI
+ if(BUILD_CursesDialog)
+diff --git a/Source/CPack/cpack.cxx b/Source/CPack/cpack.cxx
+index 94e1615..676783e 100644
+--- a/Source/CPack/cpack.cxx
++++ b/Source/CPack/cpack.cxx
+@@ -33,7 +33,7 @@
+ 
+ namespace {
+ const char* cmDocumentationName[][2] = {
+-  { nullptr, "  cpack - Packaging driver provided by CMake." },
++  { nullptr, "  cpack 3- Packaging driver provided by CMake." },
+   { nullptr, nullptr }
+ };
+ 
+@@ -119,10 +119,10 @@
+   cmSystemTools::FindCMakeResources(argv[0]);
+   cmCPackLog log;
+ 
+-  log.SetErrorPrefix("CPack Error: ");
+-  log.SetWarningPrefix("CPack Warning: ");
+-  log.SetOutputPrefix("CPack: ");
+-  log.SetVerbosePrefix("CPack Verbose: ");
++  log.SetErrorPrefix("CPack3 Error: ");
++  log.SetWarningPrefix("CPack3 Warning: ");
++  log.SetOutputPrefix("CPack3: ");
++  log.SetVerbosePrefix("CPack3 Verbose: ");
+ 
+   if (cmSystemTools::GetCurrentWorkingDirectory().empty()) {
+     cmCPack_Log(&log, cmCPackLog::LOG_ERROR,
+@@ -453,7 +453,7 @@
+   if (help) {
+     // Construct and print requested documentation.
+ 
+-    doc.SetName("cpack");
++    doc.SetName("cpack3");
+     doc.SetSection("Name", cmDocumentationName);
+     doc.SetSection("Usage", cmDocumentationUsage);
+     doc.PrependSection("Options", cmDocumentationOptions);
+diff --git a/Source/CTest/cmCTestLaunch.cxx b/Source/CTest/cmCTestLaunch.cxx
+index 4a408a2..8a84a6c 100644
+--- a/Source/CTest/cmCTestLaunch.cxx
++++ b/Source/CTest/cmCTestLaunch.cxx
+@@ -605,7 +605,7 @@ bool cmCTestLaunch::MatchesFilterPrefix(std::string const& line) const
+ int cmCTestLaunch::Main(int argc, const char* const argv[])
+ {
+   if (argc == 2) {
+-    std::cerr << "ctest --launch: this mode is for internal CTest use only"
++    std::cerr << "ctest3 --launch: this mode is for internal CTest use only"
+               << std::endl;
+     return 1;
+   }
+diff --git a/Source/CursesDialog/CMakeLists.txt b/Source/CursesDialog/CMakeLists.txt
+index 93ff425..e0c5221 100644
+--- a/Source/CursesDialog/CMakeLists.txt
++++ b/Source/CursesDialog/CMakeLists.txt
+@@ -1,7 +1,7 @@
+ # Distributed under the OSI-approved BSD 3-Clause License.  See accompanying
+ # file Copyright.txt or https://cmake.org/licensing for details.
+ 
+-add_executable(ccmake
++add_executable(ccmake3
+   ccmake.cxx
+   cmCursesBoolWidget.cxx
+   cmCursesCacheEntryComposite.cxx
+@@ -17,16 +17,16 @@
+   cmCursesStringWidget.cxx
+   cmCursesWidget.cxx
+   )
+-target_include_directories(ccmake PRIVATE ${CURSES_INCLUDE_PATH})
++target_include_directories(ccmake3 PRIVATE ${CURSES_INCLUDE_PATH})
+ set(CMAKE_REQUIRED_INCLUDES ${CURSES_INCLUDE_PATH})
+-target_link_libraries(ccmake CMakeLib)
++target_link_libraries(ccmake3 CMakeLib)
+ if(CMAKE_USE_SYSTEM_FORM)
+   find_path(CURSES_FORM_INCLUDE_DIR NAMES form.h HINTS ${CURSES_INCLUDE_PATH} ${CURSES_INCLUDE_PATH}/ncurses)
+   if(CURSES_FORM_INCLUDE_DIR)
+-    target_include_directories(ccmake PRIVATE ${CURSES_FORM_INCLUDE_DIR})
++    target_include_directories(ccmake3 PRIVATE ${CURSES_FORM_INCLUDE_DIR})
+     list(APPEND CMAKE_REQUIRED_INCLUDES ${CURSES_FORM_INCLUDE_DIR})
+   endif()
+-  target_link_libraries(ccmake
++  target_link_libraries(ccmake3
+     ${CURSES_FORM_LIBRARY}
+     ${CURSES_LIBRARY}
+   )
+@@ -35,11 +35,11 @@
+     ${CURSES_LIBRARY}
+   )
+   if(CURSES_EXTRA_LIBRARY)
+-    target_link_libraries(ccmake ${CURSES_EXTRA_LIBRARY})
++    target_link_libraries(ccmake3 ${CURSES_EXTRA_LIBRARY})
+     list(APPEND CMAKE_REQUIRED_LIBRARIES ${CURSES_EXTRA_LIBRARY})
+   endif()
+ else()
+-  target_link_libraries(ccmake cmForm)
++  target_link_libraries(ccmake3 cmForm)
+   get_target_property(cmFormIncludeDirs cmForm INTERFACE_INCLUDE_DIRECTORIES)
+   list(APPEND CMAKE_REQUIRED_INCLUDES ${cmFormIncludeDirs})
+   get_target_property(cmFormLibraries cmForm INTERFACE_LINK_LIBRARIES)
+@@ -56,8 +56,8 @@
+ endif()
+ 
+ if(CMake_JOB_POOL_LINK_BIN)
+-  set_property(TARGET ccmake PROPERTY JOB_POOL_LINK "link-bin")
++  set_property(TARGET ccmake3 PROPERTY JOB_POOL_LINK "link-bin")
+ endif()
+ 
+-CMake_OPTIONAL_COMPONENT(ccmake)
+-install(TARGETS ccmake DESTINATION ${CMAKE_BIN_DIR} ${COMPONENT})
++CMake_OPTIONAL_COMPONENT(ccmake3)
++install(TARGETS ccmake3 DESTINATION ${CMAKE_BIN_DIR} ${COMPONENT})
+diff --git a/Source/CursesDialog/ccmake.cxx b/Source/CursesDialog/ccmake.cxx
+index be8751c..7cf66e0 100644
+--- a/Source/CursesDialog/ccmake.cxx
++++ b/Source/CursesDialog/ccmake.cxx
+@@ -20,3 +20,3 @@
+ static const char* cmDocumentationName[][2] = {
+-  { nullptr, "  ccmake - Curses Interface for CMake." },
++  { nullptr, "  ccmake3 - Curses Interface for CMake." },
+   { nullptr, nullptr }
+@@ -26,4 +26,4 @@
+   { nullptr,
+-    "  ccmake <path-to-source>\n"
+-    "  ccmake <path-to-existing-build>" },
++    "  ccmake3 <path-to-source>\n"
++    "  ccmake3 <path-to-existing-build>" },
+   { nullptr,
+@@ -36,3 +36,3 @@
+ static const char* cmDocumentationUsageNote[][2] = {
+-  { nullptr, "Run 'ccmake --help' for more information." },
++  { nullptr, "Run 'ccmake3 --help' for more information." },
+   { nullptr, nullptr }
+@@ -84,3 +84,3 @@
+     auto generators = hcm.GetGeneratorsDocumentation();
+-    doc.SetName("ccmake");
++    doc.SetName("ccmake3");
+     doc.SetSection("Name", cmDocumentationName);
+@@ -134,3 +134,3 @@
+               << cmCursesMainForm::MIN_WIDTH << " x "
+-              << cmCursesMainForm::MIN_HEIGHT << " is required to run ccmake."
++              << cmCursesMainForm::MIN_HEIGHT << " is required to run ccmake3."
+               << std::endl;
+diff --git a/Source/QtDialog/cmake.desktop b/Source/QtDialog/cmake.desktop
+index 842091f..7dad70c 100644
+--- a/Source/QtDialog/cmake-gui.desktop
++++ b/Source/QtDialog/cmake-gui.desktop
+@@ -1,9 +1,9 @@
+ [Desktop Entry]
+ Version=1.0
+-Name=CMake
++Name=CMake3
+ Comment=Cross-platform buildsystem
+-Exec=cmake-gui %f
+-Icon=CMakeSetup
++Exec=cmake3-gui %f
++Icon=CMake3Setup
+ Terminal=false
+ X-MultipleArgs=false
+ Type=Application
+diff --git a/Source/QtDialog/CMakeLists.txt b/Source/QtDialog/CMakeLists.txt
+index a906f4a..ad2b2c4 100644
+--- a/Source/QtDialog/CMakeLists.txt
++++ b/Source/QtDialog/CMakeLists.txt
+@@ -2,7 +2,7 @@
+ # file Copyright.txt or https://cmake.org/licensing for details.
+ 
+ project(QtDialog)
+-CMake_OPTIONAL_COMPONENT(cmake-gui)
++CMake_OPTIONAL_COMPONENT(cmake3-gui)
+ find_package(Qt5Widgets QUIET)
+ if (Qt5Widgets_FOUND)
+   include_directories(${Qt5Widgets_INCLUDE_DIRS})
+@@ -171,8 +171,8 @@
+ 
+ set(CMAKE_INCLUDE_CURRENT_DIR ON)
+ 
+-add_executable(cmake-gui WIN32 MACOSX_BUNDLE ${SRCS} ${MANIFEST_FILE})
+-target_link_libraries(cmake-gui CMakeLib ${QT_QTMAIN_LIBRARY} ${CMake_QT_LIBRARIES})
++add_executable(cmake3-gui WIN32 MACOSX_BUNDLE ${SRCS} ${MANIFEST_FILE})
++target_link_libraries(cmake3-gui CMakeLib ${QT_QTMAIN_LIBRARY} ${CMake_QT_LIBRARIES})
+ 
+ if(WIN32)
+   target_sources(cmake-gui PRIVATE $<TARGET_OBJECTS:CMakeVersion>)
+@@ -184,7 +184,7 @@
+ 
+ # cmake-gui has not been updated for `include-what-you-use`.
+ # Block the tool until this is done.
+-set_target_properties(cmake-gui PROPERTIES
++set_target_properties(cmake3-gui PROPERTIES
+   CXX_INCLUDE_WHAT_YOU_USE ""
+   )
+ 
+@@ -216,15 +216,15 @@
+ 
+   # Create a symlink in the build tree to provide a "cmake-gui" next
+   # to the "cmake" executable that refers to the application bundle.
+-  add_custom_command(TARGET cmake-gui POST_BUILD
++  add_custom_command(TARGET cmake3-gui POST_BUILD
+     COMMAND ln -sf CMake.app/Contents/MacOS/CMake
+-                   $<TARGET_FILE_DIR:cmake>/cmake-gui
++                   $<TARGET_FILE_DIR:cmake>/cmake3-gui
+     )
+ endif()
+ set(CMAKE_INSTALL_DESTINATION_ARGS
+   BUNDLE DESTINATION "${CMAKE_BUNDLE_LOCATION}" ${COMPONENT})
+ 
+-install(TARGETS cmake-gui
++install(TARGETS cmake3-gui
+   RUNTIME DESTINATION bin ${COMPONENT}
+   ${CMAKE_INSTALL_DESTINATION_ARGS})
+ 
+@@ -234,22 +234,24 @@
+       FILES       "${CMAKE_CURRENT_SOURCE_DIR}/CMakeSetup${size}.png"
+       DESTINATION "${CMAKE_XDGDATA_DIR}/icons/hicolor/${size}x${size}/apps"
+       ${COMPONENT}
+-      RENAME      "CMakeSetup.png")
++      RENAME      "CMake3Setup.png")
+   endforeach ()
+ 
+   # install a desktop file so CMake appears in the application start menu
+   # with an icon
+   install(FILES cmake-gui.desktop
+     DESTINATION "${CMAKE_XDGDATA_DIR}/applications"
+-    ${COMPONENT})
++    ${COMPONENT}
++    RENAME      "CMake3.desktop")
+   install(FILES cmakecache.xml
+     DESTINATION "${CMAKE_XDGDATA_DIR}/mime/packages"
+-    ${COMPONENT})
++    ${COMPONENT}
++    RENAME      "cmake3cache.xml")
+ endif()
+ 
+ if(APPLE)
+   install(CODE "
+-    execute_process(COMMAND ln -s \"../MacOS/CMake\" cmake-gui
++    execute_process(COMMAND ln -s \"../MacOS/CMake\" cmake3-gui
+         WORKING_DIRECTORY \$ENV{DESTDIR}\${CMAKE_INSTALL_PREFIX}/bin)
+   " ${COMPONENT})
+ endif()
+@@ -257,7 +259,7 @@
+ if(CMake_INSTALL_DEPENDENCIES AND (APPLE OR WIN32))
+   # install rules for including 3rd party libs such as Qt
+   # if a system Qt is used (e.g. installed in /usr/lib/), it will not be included in the installation
+-  set(fixup_exe "\$ENV{DESTDIR}\${CMAKE_INSTALL_PREFIX}/bin/cmake-gui${CMAKE_EXECUTABLE_SUFFIX}")
++  set(fixup_exe "\$ENV{DESTDIR}\${CMAKE_INSTALL_PREFIX}/bin/cmake3-gui${CMAKE_EXECUTABLE_SUFFIX}")
+   if(APPLE)
+     set(fixup_exe "\$ENV{DESTDIR}\${CMAKE_INSTALL_PREFIX}/MacOS/CMake")
+   endif()
+diff --git a/Source/QtDialog/CMakeSetup.cxx b/Source/QtDialog/CMakeSetup.cxx
+index c849d52..38da596 100644
+--- a/Source/QtDialog/CMakeSetup.cxx
++++ b/Source/QtDialog/CMakeSetup.cxx
+@@ -30,6 +30,6 @@
+   { nullptr,
+-    "  cmake-gui [options]\n"
+-    "  cmake-gui [options] <path-to-source>\n"
+-    "  cmake-gui [options] <path-to-existing-build>\n"
+-    "  cmake-gui [options] -S <path-to-source> -B <path-to-build>\n" },
++    "  cmake3-gui [options]\n"
++    "  cmake3-gui [options] <path-to-source>\n"
++    "  cmake3-gui [options] <path-to-existing-build>\n"
++    "  cmake3-gui [options] -S <path-to-source> -B <path-to-build>\n" },
+   { nullptr, nullptr }
+@@ -76,3 +76,3 @@
+     auto generators = hcm.GetGeneratorsDocumentation();
+-    doc.SetName("cmake");
++    doc.SetName("cmake3");
+     doc.SetSection("Name", cmDocumentationName);
+@@ -138,7 +138,7 @@
+   // app setup
+-  QApplication::setApplicationName("CMakeSetup");
++  QApplication::setApplicationName("CMake3Setup");
+   QApplication::setOrganizationName("Kitware");
+   QIcon appIcon;
+-  appIcon.addFile(":/Icons/CMakeSetup32.png");
+-  appIcon.addFile(":/Icons/CMakeSetup128.png");
++  appIcon.addFile(":/Icons/CMake3Setup32.png");
++  appIcon.addFile(":/Icons/CMake3Setup128.png");
+   QApplication::setWindowIcon(appIcon);
+diff --git a/Source/QtDialog/QtDialogCPack.cmake.in b/Source/QtDialog/QtDialogCPack.cmake.in
+index 7ae8605..c2fe89a 100644
+--- a/Source/QtDialog/QtDialogCPack.cmake.in
++++ b/Source/QtDialog/QtDialogCPack.cmake.in
+@@ -2,8 +2,8 @@ set(IS_APPLE @APPLE@)
+ set(CMAKE_PACKAGE_QTGUI @CMAKE_PACKAGE_QTGUI@)
+ 
+ if(CMAKE_PACKAGE_QTGUI)
+-  set(CPACK_PACKAGE_EXECUTABLES "cmake-gui" "CMake (cmake-gui)" ${CPACK_PACKAGE_EXECUTABLES})
+-  set(CPACK_CREATE_DESKTOP_LINKS "cmake-gui" ${CPACK_CREATE_DESKTOP_LINKS})
++  set(CPACK_PACKAGE_EXECUTABLES "cmake3-gui" "CMake3 (cmake3-gui)" ${CPACK_PACKAGE_EXECUTABLES})
++  set(CPACK_CREATE_DESKTOP_LINKS "cmake3-gui" ${CPACK_CREATE_DESKTOP_LINKS})
+   if(IS_APPLE)
+     # for apple install we set the install prefix to
+     # / and then install
+diff --git a/Source/cmCTest.cxx b/Source/cmCTest.cxx
+index bc36c5a..29b17b9 100644
+--- a/Source/cmCTest.cxx
++++ b/Source/cmCTest.cxx
+@@ -1753,22 +1753,22 @@
+ void cmCTest::ErrorMessageUnknownDashDValue(std::string& val)
+ {
+   cmCTestLog(this, ERROR_MESSAGE,
+-             "CTest -D called with incorrect option: " << val << std::endl);
++             "CTest3 -D called with incorrect option: " << val << std::endl);
+ 
+   cmCTestLog(
+     this, ERROR_MESSAGE,
+     "Available options are:"
+       << std::endl
+-      << "  ctest -D Continuous" << std::endl
+-      << "  ctest -D Continuous(Start|Update|Configure|Build)" << std::endl
+-      << "  ctest -D Continuous(Test|Coverage|MemCheck|Submit)" << std::endl
+-      << "  ctest -D Experimental" << std::endl
+-      << "  ctest -D Experimental(Start|Update|Configure|Build)" << std::endl
+-      << "  ctest -D Experimental(Test|Coverage|MemCheck|Submit)" << std::endl
+-      << "  ctest -D Nightly" << std::endl
+-      << "  ctest -D Nightly(Start|Update|Configure|Build)" << std::endl
+-      << "  ctest -D Nightly(Test|Coverage|MemCheck|Submit)" << std::endl
+-      << "  ctest -D NightlyMemoryCheck" << std::endl);
++      << "  ctest3 -D Continuous" << std::endl
++      << "  ctest3 -D Continuous(Start|Update|Configure|Build)" << std::endl
++      << "  ctest3 -D Continuous(Test|Coverage|MemCheck|Submit)" << std::endl
++      << "  ctest3 -D Experimental" << std::endl
++      << "  ctest3 -D Experimental(Start|Update|Configure|Build)" << std::endl
++      << "  ctest3 -D Experimental(Test|Coverage|MemCheck|Submit)" << std::endl
++      << "  ctest3 -D Nightly" << std::endl
++      << "  ctest3 -D Nightly(Start|Update|Configure|Build)" << std::endl
++      << "  ctest3 -D Nightly(Test|Coverage|MemCheck|Submit)" << std::endl
++      << "  ctest3 -D NightlyMemoryCheck" << std::endl);
+ }
+ 
+ bool cmCTest::CheckArgument(const std::string& arg, const char* varg1,
+@@ -1997,7 +1997,7 @@ bool cmCTest::AddVariableDefinition(const std::string& arg)
+ // the main entry point of ctest, called from main
+ int cmCTest::Run(std::vector<std::string>& args, std::string* output)
+ {
+-  const char* ctestExec = "ctest";
++  const char* ctestExec = "ctest3";
+   bool cmakeAndTest = false;
+   bool executeTests = true;
+   bool SRArgumentSpecified = false;
+diff --git a/Source/cmGlobalGenerator.cxx b/Source/cmGlobalGenerator.cxx
+index a1764a3..0245a6e 100644
+--- a/Source/cmGlobalGenerator.cxx
++++ b/Source/cmGlobalGenerator.cxx
+@@ -2229,7 +2229,7 @@ void cmGlobalGenerator::CreateDefaultGlobalTargets(cmTargets* targets)
+       // We are building CMake itself.  We cannot use the original
+       // executable to install over itself.  The generator will
+       // automatically convert this name to the build-time location.
+-      cmd = "cmake";
++      cmd = "cmake3";
+     }
+     singleLine.push_back(cmd);
+     if (cmakeCfgIntDir && *cmakeCfgIntDir && cmakeCfgIntDir[0] != '.') {
+diff --git a/Source/cmSystemTools.cxx b/Source/cmSystemTools.cxx
+index 7dece47..bd6946f 100644
+--- a/Source/cmSystemTools.cxx
++++ b/Source/cmSystemTools.cxx
+@@ -1950,7 +1950,7 @@
+     // Look for ..<CMAKE_BIN_DIR> (install tree) and then fall back to
+     // ../../../bin (build tree).
+     exe_dir = cmSystemTools::GetFilenamePath(exe_dir);
+-    if (cmSystemTools::FileExists(exe_dir + CMAKE_BIN_DIR "/cmake")) {
++    if (cmSystemTools::FileExists(exe_dir + CMAKE_BIN_DIR "/cmake3")) {
+       exe_dir += CMAKE_BIN_DIR;
+     } else {
+       exe_dir = cmSystemTools::GetFilenamePath(exe_dir);
+@@ -1970,28 +1970,28 @@
+ #endif
+   exe_dir = cmSystemTools::GetActualCaseForPath(exe_dir);
+   cmSystemToolsCMakeCommand =
+-    cmStrCat(exe_dir, "/cmake", cmSystemTools::GetExecutableExtension());
++    cmStrCat(exe_dir, "/cmake3", cmSystemTools::GetExecutableExtension());
+ #ifdef CMAKE_BOOTSTRAP
+   // The bootstrap cmake does not provide the other tools,
+   // so use the directory where they are about to be built.
+   exe_dir = CMAKE_BOOTSTRAP_BINARY_DIR "/bin";
+ #endif
+   cmSystemToolsCTestCommand =
+-    cmStrCat(exe_dir, "/ctest", cmSystemTools::GetExecutableExtension());
++    cmStrCat(exe_dir, "/ctest3", cmSystemTools::GetExecutableExtension());
+   cmSystemToolsCPackCommand =
+-    cmStrCat(exe_dir, "/cpack", cmSystemTools::GetExecutableExtension());
++    cmStrCat(exe_dir, "/cpack3", cmSystemTools::GetExecutableExtension());
+   cmSystemToolsCMakeGUICommand =
+-    cmStrCat(exe_dir, "/cmake-gui", cmSystemTools::GetExecutableExtension());
++    cmStrCat(exe_dir, "/cmake3-gui", cmSystemTools::GetExecutableExtension());
+   if (!cmSystemTools::FileExists(cmSystemToolsCMakeGUICommand)) {
+     cmSystemToolsCMakeGUICommand.clear();
+   }
+   cmSystemToolsCMakeCursesCommand =
+-    cmStrCat(exe_dir, "/ccmake", cmSystemTools::GetExecutableExtension());
++    cmStrCat(exe_dir, "/ccmake3", cmSystemTools::GetExecutableExtension());
+   if (!cmSystemTools::FileExists(cmSystemToolsCMakeCursesCommand)) {
+     cmSystemToolsCMakeCursesCommand.clear();
+   }
+   cmSystemToolsCMClDepsCommand =
+-    cmStrCat(exe_dir, "/cmcldeps", cmSystemTools::GetExecutableExtension());
++    cmStrCat(exe_dir, "/cmcldeps3", cmSystemTools::GetExecutableExtension());
+   if (!cmSystemTools::FileExists(cmSystemToolsCMClDepsCommand)) {
+     cmSystemToolsCMClDepsCommand.clear();
+   }
+diff --git a/Source/cmakemain.cxx b/Source/cmakemain.cxx
+index 056671a..d3ee86c 100644
+--- a/Source/cmakemain.cxx
++++ b/Source/cmakemain.cxx
+@@ -36,15 +36,15 @@
+ namespace {
+ #ifndef CMAKE_BOOTSTRAP
+ const char* cmDocumentationName[][2] = {
+-  { nullptr, "  cmake - Cross-Platform Makefile Generator." },
++  { nullptr, "  cmake3 - Cross-Platform Makefile Generator." },
+   { nullptr, nullptr }
+ };
+ 
+ const char* cmDocumentationUsage[][2] = {
+   { nullptr,
+-    "  cmake [options] <path-to-source>\n"
+-    "  cmake [options] <path-to-existing-build>\n"
+-    "  cmake [options] -S <path-to-source> -B <path-to-build>" },
++    "  cmake3 [options] <path-to-source>\n"
++    "  cmake3 [options] <path-to-existing-build>\n"
++    "  cmake3 [options] -S <path-to-source> -B <path-to-build>" },
+   { nullptr,
+     "Specify a source directory to (re-)generate a build system for "
+     "it in the current working directory.  Specify an existing build "
+@@ -53,7 +53,7 @@
+ };
+ 
+ const char* cmDocumentationUsageNote[][2] = {
+-  { nullptr, "Run 'cmake --help' for more information." },
++  { nullptr, "Run 'cmake3 --help' for more information." },
+   { nullptr, nullptr }
+ };
+ 
+@@ -178,7 +178,7 @@
+ 
+     auto generators = hcm.GetGeneratorsDocumentation();
+ 
+-    doc.SetName("cmake");
++    doc.SetName("cmake3");
+     doc.SetSection("Name", cmDocumentationName);
+     doc.SetSection("Usage", cmDocumentationUsage);
+     if (ac == 1) {
+@@ -209,7 +209,7 @@
+     if (strcmp(av[i], "-i") == 0) {
+       /* clang-format off */
+       std::cerr <<
+-        "The \"cmake -i\" wizard mode is no longer supported.\n"
++        "The \"cmake3 -i\" wizard mode is no longer supported.\n"
+         "Use the -D option to set cache values on the command line.\n"
+         "Use cmake-gui or ccmake for an interactive dialog.\n";
+       /* clang-format on */
+@@ -468,7 +468,7 @@
+   if (dir.empty()) {
+     /* clang-format off */
+     std::cerr <<
+-      "Usage: cmake --build <dir> [options] [-- [native-options]]\n"
++      "Usage: cmake3 --build <dir> [options] [-- [native-options]]\n"
+       "Options:\n"
+       "  <dir>          = Project binary directory to be built.\n"
+       "  --parallel [<jobs>], -j [<jobs>]\n"
+diff --git a/Source/ctest.cxx b/Source/ctest.cxx
+index 4edd62e..2591bf0 100644
+--- a/Source/ctest.cxx
++++ b/Source/ctest.cxx
+@@ -17,12 +17,12 @@
+ #include <vector>
+ 
+ static const char* cmDocumentationName[][2] = {
+-  { nullptr, "  ctest - Testing driver provided by CMake." },
++  { nullptr, "  ctest3 - Testing driver provided by CMake." },
+   { nullptr, nullptr }
+ };
+ 
+ static const char* cmDocumentationUsage[][2] = { { nullptr,
+-                                                   "  ctest [options]" },
++                                                   "  ctest3 [options]" },
+                                                  { nullptr, nullptr } };
+ 
+ static const char* cmDocumentationOptions[][2] = {
+@@ -163,7 +163,7 @@ int main(int argc, char const* const* argv)
+       ch->CreateCMake();
+ 
+       doc.SetShowGenerators(false);
+-      doc.SetName("ctest");
++      doc.SetName("ctest3");
+       doc.SetSection("Name", cmDocumentationName);
+       doc.SetSection("Usage", cmDocumentationUsage);
+       doc.PrependSection("Options", cmDocumentationOptions);
+--- a/Tests/CMakeLib/CMakeLists.orig.txt	2020-04-09 14:33:17.000000000 +0200
++++ b/Tests/CMakeLib/CMakeLists.txt	2020-04-25 23:45:44.534053472 +0200
+@@ -34,7 +34,7 @@
+ 
+ set(testRST_ARGS ${CMAKE_CURRENT_SOURCE_DIR})
+ set(testUVProcessChain_ARGS $<TARGET_FILE:testUVProcessChainHelper>)
+-set(testUVStreambuf_ARGS $<TARGET_FILE:cmake>)
++set(testUVStreambuf_ARGS $<TARGET_FILE:cmake3>)
+ set(testCTestResourceSpec_ARGS ${CMAKE_CURRENT_SOURCE_DIR})
+ set(testGccDepfileReader_ARGS ${CMAKE_CURRENT_SOURCE_DIR})
+ 
+diff --git a/Tests/CMakeLists.txt b/Tests/CMakeLists.txt
+index f21e430..cd81333 100644
+--- a/Tests/CMakeLists.txt
++++ b/Tests/CMakeLists.txt
+@@ -2811,3 +2811,3 @@
+     ${CMake_BINARY_DIR}/Testing/MumpsCoverage
+-    $<TARGET_FILE:ctest> -T Coverage --debug)
++    $<TARGET_FILE:ctest3> -T Coverage --debug)
+   set_tests_properties(CTestGTMCoverage PROPERTIES
+@@ -2829,3 +2829,3 @@
+     ${CMake_BINARY_DIR}/Testing/MumpsCacheCoverage
+-    $<TARGET_FILE:ctest> -T Coverage --debug)
++    $<TARGET_FILE:ctest3> -T Coverage --debug)
+   set_tests_properties(CTestCacheCoverage PROPERTIES
+@@ -2847,3 +2847,3 @@
+     ${CMake_BINARY_DIR}/Testing/PythonCoverage
+-    $<TARGET_FILE:ctest> -T Coverage --debug)
++    $<TARGET_FILE:ctest3> -T Coverage --debug)
+   set_tests_properties(CTestPythonCoverage PROPERTIES
+@@ -2865,3 +2865,3 @@
+     ${CMake_BINARY_DIR}/Testing/CoberturaCoverage
+-    $<TARGET_FILE:ctest> -T Coverage --debug)
++    $<TARGET_FILE:ctest3> -T Coverage --debug)
+   set_tests_properties(CTestCoberturaCoverage PROPERTIES
+@@ -2884,3 +2884,3 @@
+     ${CMake_BINARY_DIR}/Testing/JacocoCoverage
+-    $<TARGET_FILE:ctest> -T Coverage --debug)
++    $<TARGET_FILE:ctest3> -T Coverage --debug)
+   set_tests_properties(CTestJacocoCoverage PROPERTIES
+@@ -2903,3 +2903,3 @@
+     ${CMake_BINARY_DIR}/Testing/JavascriptCoverage
+-    $<TARGET_FILE:ctest> -T Coverage --debug)
++    $<TARGET_FILE:ctest3> -T Coverage --debug)
+   set_tests_properties(CTestJavascriptCoverage PROPERTIES
+@@ -2921,3 +2921,3 @@
+     ${CMake_BINARY_DIR}/Testing/DelphiCoverage
+-    $<TARGET_FILE:ctest> -T Coverage --debug)
++    $<TARGET_FILE:ctest3> -T Coverage --debug)
+   set_tests_properties(CTestDelphiCoverage PROPERTIES
+diff --git a/Tests/CMakeTests/CMakeLists.txt b/Tests/CMakeTests/CMakeLists.txt
+index d5524c3..7e4fd16 100644
+--- a/Tests/CMakeTests/CMakeLists.txt
++++ b/Tests/CMakeTests/CMakeLists.txt
+@@ -1,4 +1,4 @@
+-set(CMAKE_EXECUTABLE "${CMake_BIN_DIR}/cmake")
++set(CMAKE_EXECUTABLE "${CMake_BIN_DIR}/cmake3")
+ 
+ 
+ macro(AddCMakeTest TestName PreArgs)
+diff --git a/Tests/CTestConfig/dashboard.cmake.in b/Tests/CTestConfig/dashboard.cmake.in
+index 143fe71..31e26d3 100644
+--- a/Tests/CTestConfig/dashboard.cmake.in
++++ b/Tests/CTestConfig/dashboard.cmake.in
+@@ -5,7 +5,7 @@ set(CTEST_BINARY_DIRECTORY "@CMake_BINARY_DIR@/Tests/CTestConfig/@cfg@-dashboard
+ file(MAKE_DIRECTORY "${CTEST_BINARY_DIRECTORY}")
+ 
+ get_filename_component(dir "${CMAKE_COMMAND}" PATH)
+-set(CMAKE_CTEST_COMMAND "${dir}/ctest")
++set(CMAKE_CTEST_COMMAND "${dir}/ctest3")
+ 
+ message("CMAKE_COMMAND='${CMAKE_COMMAND}'")
+ message("CMAKE_CTEST_COMMAND='${CMAKE_CTEST_COMMAND}'")
+diff --git a/Tests/CommandLineTest/CMakeLists.txt b/Tests/CommandLineTest/CMakeLists.txt
+index 96aac10..95eb5e8 100644
+--- a/Tests/CommandLineTest/CMakeLists.txt
++++ b/Tests/CommandLineTest/CMakeLists.txt
+@@ -27,7 +27,7 @@ EXEC_CMAKE_COMMAND("--version \"${CMAKE_CURRENT_BINARY_DIR}/version.txt\"")
+ add_executable(CommandLineTest CommandLineTest.cxx)
+ 
+ get_filename_component(CMAKE_COMMAND_PATH "${CMAKE_COMMAND}" PATH)
+-set(CTEST_COMMAND "${CMAKE_COMMAND_PATH}/ctest")
++set(CTEST_COMMAND "${CMAKE_COMMAND_PATH}/ctest3")
+ macro(EXEC_CTEST_COMMAND CMAKE_ARGS)
+   exec_program("${CTEST_COMMAND}" ARGS "${CMAKE_ARGS}" RETURN_VALUE RET)
+   if(${RET})
+--- a/Tests/FindPackageModeMakefileTest/CMakeLists.orig.txt	2018-03-28 13:16:49.000000000 +0200
++++ b/Tests/FindPackageModeMakefileTest/CMakeLists.txt	2018-04-07 16:41:42.485284020 +0200
+@@ -21,7 +21,7 @@
+ 
+     # now set up the test:
+     file(GENERATE OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/cmakeExecutable.mk"
+-      CONTENT "CMAKE = \"$<TARGET_FILE:cmake>\"\n"
++      CONTENT "CMAKE = \"$<TARGET_FILE:cmake3>\"\n"
+     )
+     configure_file(${CMAKE_CURRENT_SOURCE_DIR}/Makefile.in ${CMAKE_CURRENT_BINARY_DIR}/ConfMakefile @ONLY)
+     configure_file(${CMAKE_CURRENT_SOURCE_DIR}/main.cpp ${CMAKE_CURRENT_BINARY_DIR}/main.cpp COPYONLY)
+--- a/Tests/RunCMake/CommandLine/BuildDir--build-jobs-bad-number-stderr.orig.txt	2018-07-17 13:29:00.000000000 +0200
++++ b/Tests/RunCMake/CommandLine/BuildDir--build-jobs-bad-number-stderr.txt	2018-07-28 19:46:58.158978407 +0200
+@@ -1,3 +1,3 @@
+ ^'-j' invalid number '12ab' given\.
+ +
+-Usage: cmake --build <dir> \[options\] \[-- \[native-options\]\]
++Usage: cmake3 --build <dir> \[options\] \[-- \[native-options\]\]
+--- a/Tests/RunCMake/CommandLine/BuildDir--build-jobs-no-space-bad-number-stderr.orig.txt	2019-07-16 13:19:55.000000000 +0200
++++ b/Tests/RunCMake/CommandLine/BuildDir--build-jobs-no-space-bad-number-stderr.txt	2019-08-30 16:59:44.617409999 +0200
+@@ -2,2 +2,2 @@
+ +
+-Usage: cmake --build <dir> \[options\] \[-- \[native-options\]\]
++Usage: cmake3 --build <dir> \[options\] \[-- \[native-options\]\]
+--- a/Tests/RunCMake/CommandLine/BuildDir--build--parallel-bad-number-stderr.orig.txt	2018-07-17 13:29:00.000000000 +0200
++++ b/Tests/RunCMake/CommandLine/BuildDir--build--parallel-bad-number-stderr.txt	2018-07-28 19:46:13.965190619 +0200
+@@ -1,3 +1,3 @@
+ ^'--parallel' invalid number '12ab' given\.
+ +
+-Usage: cmake --build <dir> \[options\] \[-- \[native-options\]\]
++Usage: cmake3 --build <dir> \[options\] \[-- \[native-options\]\]
+--- a/Tests/RunCMake/CommandLine/BuildDir--build--parallel-no-space-bad-number-stderr.orig.txt	2019-07-16 13:19:55.000000000 +0200
++++ b/Tests/RunCMake/CommandLine/BuildDir--build--parallel-no-space-bad-number-stderr.txt	2019-08-30 12:38:48.285341696 +0200
+@@ -2,2 +2,2 @@
+ +
+-Usage: cmake --build <dir> \[options\] \[-- \[native-options\]\]
++Usage: cmake3 --build <dir> \[options\] \[-- \[native-options\]\]
+--- a/Tests/RunCMake/CommandLine/BuildDir--build-multiple-targets-with-clean-first-stderr.orig.txt	2020-04-09 14:33:17.000000000 +0200
++++ b/Tests/RunCMake/CommandLine/BuildDir--build-multiple-targets-with-clean-first-stderr.txt	2020-04-26 11:16:28.509198583 +0200
+@@ -1,2 +1,2 @@
+ ^Error: Building 'clean' and other targets together is not supported\.
+-Usage: cmake --build <dir> \[options\] \[-- \[native-options\]\]
++Usage: cmake3 --build <dir> \[options\] \[-- \[native-options\]\]
+--- a/Tests/RunCMake/CommandLine/BuildDir--build-multiple-targets-with-clean-second-stderr.orig.txt	2020-04-09 14:33:17.000000000 +0200
++++ b/Tests/RunCMake/CommandLine/BuildDir--build-multiple-targets-with-clean-second-stderr.txt	2020-04-26 15:50:21.929561813 +0200
+@@ -1,2 +1,2 @@
+ ^Error: Building 'clean' and other targets together is not supported\.
+-Usage: cmake --build <dir> \[options\] \[-- \[native-options\]\]
++Usage: cmake3 --build <dir> \[options\] \[-- \[native-options\]\]
+--- a/Tests/RunCMake/CommandLine/BuildDir--build--parallel-zero-stderr.orig.txt	2020-04-09 14:33:17.000000000 +0200
++++ b/Tests/RunCMake/CommandLine/BuildDir--build--parallel-zero-stderr.txt	2020-04-26 16:53:13.277586899 +0200
+@@ -1,3 +1,3 @@
+ ^The <jobs> value requires a positive integer argument\.
+ +
+-Usage: cmake --build <dir> \[options\] \[-- \[native-options\]\]
++Usage: cmake3 --build <dir> \[options\] \[-- \[native-options\]\]
+--- a/Tests/RunCMake/CommandLine/BuildDir--build--parallel-large-stderr.orig.txt	2020-04-09 14:33:17.000000000 +0200
++++ b/Tests/RunCMake/CommandLine/BuildDir--build--parallel-large-stderr.txt	2020-04-26 16:55:03.616000455 +0200
+@@ -1,3 +1,3 @@
+ ^The <jobs> value is too large\.
+ +
+-Usage: cmake --build <dir> \[options\] \[-- \[native-options\]\]
++Usage: cmake3 --build <dir> \[options\] \[-- \[native-options\]\]
+--- a/Tests/RunCMake/CommandLine/BuildDir--build-jobs-large-stderr.orig.txt	2020-04-09 14:33:17.000000000 +0200
++++ b/Tests/RunCMake/CommandLine/BuildDir--build-jobs-large-stderr.txt	2020-04-26 16:56:16.610612491 +0200
+@@ -1,3 +1,3 @@
+ ^The <jobs> value is too large\.
+ +
+-Usage: cmake --build <dir> \[options\] \[-- \[native-options\]\]
++Usage: cmake3 --build <dir> \[options\] \[-- \[native-options\]\]
+--- a/Tests/RunCMake/CommandLine/BuildDir--build-jobs-zero-stderr.orig.txt	2020-04-09 14:33:17.000000000 +0200
++++ b/Tests/RunCMake/CommandLine/BuildDir--build-jobs-zero-stderr.txt	2020-04-26 16:57:12.218316938 +0200
+@@ -1,3 +1,3 @@
+ ^The <jobs> value requires a positive integer argument\.
+ +
+-Usage: cmake --build <dir> \[options\] \[-- \[native-options\]\]
++Usage: cmake3 --build <dir> \[options\] \[-- \[native-options\]\]
+--- a/Tests/RunCMake/CPack/tests/EXTERNAL/bad_major-stderr.orig.txt	2018-11-28 13:14:24.000000000 +0100
++++ b/Tests/RunCMake/CPack/tests/EXTERNAL/bad_major-stderr.txt	2018-12-30 14:49:49.071795542 +0100
+@@ -2,5 +2,5 @@
+   Could not find a suitable version in CPACK_EXTERNAL_REQUESTED_VERSIONS
+ 
+ 
+-CPack Error: Error while executing CPackExternal\.cmake
+-CPack Error: Cannot initialize the generator External
++CPack3 Error: Error while executing CPackExternal\.cmake
++CPack3 Error: Cannot initialize the generator External
+--- a/Tests/RunCMake/CPack/tests/EXTERNAL/bad_minor-stderr.orig.txt	2018-11-28 13:14:24.000000000 +0100
++++ b/Tests/RunCMake/CPack/tests/EXTERNAL/bad_minor-stderr.txt	2018-12-30 19:16:40.695879609 +0100
+@@ -2,5 +2,5 @@
+   Could not find a suitable version in CPACK_EXTERNAL_REQUESTED_VERSIONS
+ 
+ 
+-CPack Error: Error while executing CPackExternal\.cmake
+-CPack Error: Cannot initialize the generator External
++CPack3 Error: Error while executing CPackExternal\.cmake
++CPack3 Error: Cannot initialize the generator External
+--- a/Tests/RunCMake/CPack/tests/EXTERNAL/invalid_bad-stderr.orig.txt	2018-11-28 13:14:24.000000000 +0100
++++ b/Tests/RunCMake/CPack/tests/EXTERNAL/invalid_bad-stderr.txt	2018-12-30 19:15:48.170133287 +0100
+@@ -2,5 +2,5 @@
+   Could not find a suitable version in CPACK_EXTERNAL_REQUESTED_VERSIONS
+ 
+ 
+-CPack Error: Error while executing CPackExternal\.cmake
+-CPack Error: Cannot initialize the generator External
++CPack3 Error: Error while executing CPackExternal\.cmake
++CPack3 Error: Cannot initialize the generator External
+--- a/Tests/RunCMake/CTestCommandLine/show-only_bad-stderr.orig.txt	2019-07-16 13:19:55.000000000 +0200
++++ b/Tests/RunCMake/CTestCommandLine/show-only_bad-stderr.txt	2019-08-30 17:04:39.769643274 +0200
+@@ -1 +1 @@
+-^CMake Error: '--show-only=' given unknown value 'bad'$
++CMake3 Error: '--show-only=' given unknown value 'bad'$
+--- a/Tests/RunCMake/CPackCommandLine/NotAGenerator-stderr.orig.txt	2019-07-16 13:19:55.000000000 +0200
++++ b/Tests/RunCMake/CPackCommandLine/NotAGenerator-stderr.txt	2019-08-29 18:46:43.393638238 +0200
+@@ -1 +1 @@
+-^CPack Error: Could not create CPack generator: NotAGenerator
++^CPack3 Error: Could not create CPack generator: NotAGenerator
+--- a/Tests/RunCMake/CPack/tests/CPACK_INSTALL_SCRIPTS/both-stderr.orig.txt	2020-04-09 14:33:17.000000000 +0200
++++ b/Tests/RunCMake/CPack/tests/CPACK_INSTALL_SCRIPTS/both-stderr.txt	2020-04-26 11:21:24.490373571 +0200
+@@ -1 +1 @@
+-CPack Warning: Both CPACK_INSTALL_SCRIPTS and CPACK_INSTALL_SCRIPT are set, the latter will be ignored.
++CPack3 Warning: Both CPACK_INSTALL_SCRIPTS and CPACK_INSTALL_SCRIPT are set, the latter will be ignored.
+--- a/Tests/RunCMake/CommandLine/Wizard-stderr.orig.txt	2018-11-28 13:14:24.000000000 +0100
++++ b/Tests/RunCMake/CommandLine/Wizard-stderr.txt	2018-12-30 14:57:32.537253674 +0100
+@@ -1 +1 @@
+-^The "cmake -i" wizard mode is no longer supported\.
++^The "cmake3 -i" wizard mode is no longer supported\.
+--- a/Tests/RunCMake/CPack/tests/SINGLE_DEBUGINFO/RPM-no_main_component-stderr.orig.txt	2020-04-09 14:33:17.000000000 +0200
++++ b/Tests/RunCMake/CPack/tests/SINGLE_DEBUGINFO/RPM-no_main_component-stderr.txt	2020-04-26 13:51:14.784955230 +0200
+@@ -1 +1 @@
+-CPack Error: CPACK_RPM_MAIN_COMPONENT not set but it is mandatory with CPACK_RPM_DEBUGINFO_SINGLE_PACKAGE being set.
++CPack3 Error: CPACK_RPM_MAIN_COMPONENT not set but it is mandatory with CPACK_RPM_DEBUGINFO_SINGLE_PACKAGE being set.
+--- a/Tests/RunCMake/CPack/tests/SUGGESTS/RPM-stderr.orig.txt	2020-04-09 14:33:17.000000000 +0200
++++ b/Tests/RunCMake/CPack/tests/SUGGESTS/RPM-stderr.txt	2020-04-26 15:18:06.665838054 +0200
+@@ -1 +1 @@
+-^(.*CPackRPM:Warning: SUGGESTS not supported in provided rpmbuild.*)?CPackRPM: Will use GENERATED spec file: (/[^/]*)*/Tests/RunCMake/RPM\.SUGGESTS/CPack/[^-]*-build/_CPack_Packages/.*/RPM/SPECS/[^\.]*\.spec$
++^(.*CPackRPM:Warning: SUGGESTS not supported in provided rpmbuild.*)?CPackRPM: Will use GENERATED spec file: (/[^/]*)*/Tests/RunCMake/RPM\.SUGGESTS/CPack3/[^-]*-build/_CPack_Packages/.*/RPM/SPECS/[^\.]*\.spec$
+--- a/Tests/RunCMake/CPack/RPM/default_expected_stderr.orig.txt	2020-04-09 14:33:17.000000000 +0200
++++ b/Tests/RunCMake/CPack/RPM/default_expected_stderr.txt	2020-04-26 15:26:02.680522173 +0200
+@@ -1 +1 @@
+-^(CPackRPM: Will use GENERATED spec file: (/[^/]*)*/Tests/RunCMake/RPM\.[^/]*/CPack/[^-]*(-package-target)?-build((-[^-]*-subtest/)|/)_CPack_Packages/.*/RPM/SPECS/[^\.]*\.spec(\n|$))*$
++^(CPackRPM: Will use GENERATED spec file: (/[^/]*)*/Tests/RunCMake/RPM\.[^/]*/CPack3/[^-]*(-package-target)?-build((-[^-]*-subtest/)|/)_CPack_Packages/.*/RPM/SPECS/[^\.]*\.spec(\n|$))*$
+--- a/Tests/RunCMake/CPack/VerifyResult.orig.cmake	2020-04-09 14:33:17.000000000 +0200
++++ b/Tests/RunCMake/CPack/VerifyResult.cmake	2020-04-26 14:18:54.582120932 +0200
+@@ -30,7 +30,7 @@
+ file(READ "${config_file}" config_file_content)
+ 
+ set(output_error_message
+-    "\nCPack output: '${output}'\nCPack error: '${error}';\nCPack result: '${PACKAGING_RESULT}';\nconfig file: '${config_file_content}'")
++    "\nCPack3 output: '${output}'\nCPack3 error: '${error}';\nCPack3 result: '${PACKAGING_RESULT}';\nconfig file: '${config_file_content}'")
+ 
+ # generate default expected files data
+ include("${src_dir}/tests/${RunCMake_TEST_FILE_PREFIX}/ExpectedFiles.cmake")
+diff --git a/Tests/RunCMake/CommandLine/NoArgs-stdout.txt b/Tests/RunCMake/CommandLine/NoArgs-stdout.txt
+index 1cd3469..7833aec 100644
+--- a/Tests/RunCMake/CommandLine/NoArgs-stdout.txt
++++ b/Tests/RunCMake/CommandLine/NoArgs-stdout.txt
+@@ -1,11 +1,11 @@
+ ^Usage
+ 
+-  cmake \[options\] <path-to-source>
+-  cmake \[options\] <path-to-existing-build>
+-  cmake \[options\] -S <path-to-source> -B <path-to-build>
++  cmake3 \[options\] <path-to-source>
++  cmake3 \[options\] <path-to-existing-build>
++  cmake3 \[options\] -S <path-to-source> -B <path-to-build>
+ 
+ Specify a source directory to \(re-\)generate a build system for it in the
+ current working directory.  Specify an existing build directory to
+ re-generate its build system.
+ 
+-Run 'cmake --help' for more information.$
++Run 'cmake3 --help' for more information.$
+diff --git a/Tests/RunCMake/CommandLine/build-no-dir-stderr.txt b/Tests/RunCMake/CommandLine/build-no-dir-stderr.txt
+index 8d518f6..d1ed4d5 100644
+--- a/Tests/RunCMake/CommandLine/build-no-dir-stderr.txt
++++ b/Tests/RunCMake/CommandLine/build-no-dir-stderr.txt
+@@ -1 +1 @@
+-^Usage: cmake --build <dir> \[options\] \[-- \[native-options\]\]
++^Usage: cmake3 --build <dir> \[options\] \[-- \[native-options\]\]
+--- a/Tests/RunCMake/CPack/tests/PACKAGE_CHECKSUM/TGZ-invalid-stderr.orig.txt	2018-03-28 13:16:49.000000000 +0200
++++ b/Tests/RunCMake/CPack/tests/PACKAGE_CHECKSUM/TGZ-invalid-stderr.txt	2018-04-07 20:51:12.050965106 +0200
+@@ -1,2 +1,2 @@
+-^CPack Error: Cannot recognize algorithm: invalid
+-CPack Error: Error when generating package: package_checksum$
++^CPack3 Error: Cannot recognize algorithm: invalid
++CPack3 Error: Error when generating package: package_checksum$
+diff --git a/Utilities/CMakeLists.txt b/Utilities/CMakeLists.txt
+index cf6bb72..c75cfe6 100644
+--- a/Utilities/CMakeLists.txt
++++ b/Utilities/CMakeLists.txt
+@@ -13,9 +13,9 @@
+   endif()
+   add_custom_command(
+     OUTPUT ${dir}.stamp
+-    COMMAND cmake -E rm -rf ${dir}
+-    COMMAND cmake -E tar xf ${CMAKE_DOC_TARBALL}
+-    COMMAND cmake -E touch ${dir}.stamp
++    COMMAND cmake3 -E rm -rf ${dir}
++    COMMAND cmake3 -E tar xf ${CMAKE_DOC_TARBALL}
++    COMMAND cmake3 -E touch ${dir}.stamp
+     DEPENDS ${CMAKE_DOC_TARBALL}
+     )
+   add_custom_target(documentation ALL DEPENDS ${dir}.stamp)
+diff --git a/Utilities/Sphinx/CMakeLists.txt b/Utilities/Sphinx/CMakeLists.txt
+index 257ba62..8bff516 100644
+--- a/Utilities/Sphinx/CMakeLists.txt
++++ b/Utilities/Sphinx/CMakeLists.txt
+@@ -160,9 +160,17 @@
+       endif()
+       if(NOT skip)
+         CMake_OPTIONAL_COMPONENT(sphinx-man)
++        set(new_name "")
++        string(REPLACE "cmake" "cmake3" new_name "${name}")
++        if("${new_name}" STREQUAL "cpack")
++        string(REPLACE "cpack" "cpack3" new_name "${name}")
++        endif("${new_name}" STREQUAL "cpack")
++        if("${new_name}" STREQUAL "ctest")
++        string(REPLACE "ctest" "ctest3" new_name "${name}")
++        endif("${new_name}" STREQUAL "ctest")
+         install(FILES ${CMAKE_CURRENT_BINARY_DIR}/man/${name}.${sec}
+                 DESTINATION ${CMAKE_MAN_DIR}/man${sec}
+-                ${COMPONENT})
++                RENAME "${new_name}.${sec}" ${COMPONENT})
+       endif()
+       unset(skip)
+     endif()
+diff --git a/bootstrap b/bootstrap
+index b3f06a1..3b51252 100755
+--- a/bootstrap
++++ b/bootstrap
+@@ -1563,8 +1563,8 @@
+   -I`cmake_escape \"${cmake_source_dir}/Source/LexerParser\"` \
+   -I`cmake_escape \"${cmake_source_dir}/Utilities/std\"` \
+   -I`cmake_escape \"${cmake_source_dir}/Utilities\"`"
+-echo "cmake: ${objs}" > "${cmake_bootstrap_dir}/Makefile"
+-echo "	${cmake_cxx_compiler} ${cmake_ld_flags} ${cmake_cxx_flags} ${objs} ${libs} -o cmake" >> "${cmake_bootstrap_dir}/Makefile"
++echo "cmake3: ${objs}" > "${cmake_bootstrap_dir}/Makefile"
++echo "	${cmake_cxx_compiler} ${cmake_ld_flags} ${cmake_cxx_flags} ${objs} ${libs} -o cmake3" >> "${cmake_bootstrap_dir}/Makefile"
+ for a in ${CMAKE_CXX_SOURCES}; do
+   src=`cmake_escape "${cmake_source_dir}/Source/${a}.cxx"`
+   src_flags=`eval echo \\${cmake_cxx_flags_\${a}}`
+@@ -1710,7 +1710,7 @@
+ if [ -n "${cmake_verbose}" ]; then
+   cmake_options="${cmake_options} -DCMAKE_VERBOSE_MAKEFILE=1"
+ fi
+-"${cmake_bootstrap_dir}/cmake" "${cmake_source_dir}" "-C${cmake_bootstrap_dir}/InitialCacheFlags.cmake" "-G${cmake_bootstrap_generator}" ${cmake_options} ${cmake_bootstrap_system_libs} "$@"
++"${cmake_bootstrap_dir}/cmake3" "${cmake_source_dir}" "-C${cmake_bootstrap_dir}/InitialCacheFlags.cmake" "-G${cmake_bootstrap_generator}" ${cmake_options} ${cmake_bootstrap_system_libs} "$@"
+ RES=$?
+ if [ "${RES}" -ne "0" ]; then
+   cmake_error 11 "Problem while running initial CMake"

@@ -1,0 +1,534 @@
+From 28a73eac54fbc7cfebfd3b2231ee607284233a00 Mon Sep 17 00:00:00 2001
+From: Florian Weik <fweik@icp.uni-stuttgart.de>
+Date: Wed, 10 Jun 2020 10:18:21 +0200
+Subject: [PATCH 1/4] fixed ub access to first element of empty vectors
+
+---
+ include/boost/mpi/collectives/all_reduce.hpp   |  2 +-
+ include/boost/mpi/collectives/all_to_all.hpp   | 12 ++++++------
+ include/boost/mpi/collectives/gatherv.hpp      |  8 ++++----
+ include/boost/mpi/collectives/reduce.hpp       |  4 ++--
+ include/boost/mpi/collectives/scatter.hpp      |  2 +-
+ include/boost/mpi/collectives/scatterv.hpp     |  4 ++--
+ .../mpi/detail/binary_buffer_iprimitive.hpp    |  4 ++--
+ .../mpi/detail/binary_buffer_oprimitive.hpp    |  2 +-
+ .../mpi/detail/mpi_datatype_primitive.hpp      |  2 +-
+ include/boost/mpi/detail/packed_iprimitive.hpp |  4 ++--
+ include/boost/mpi/detail/packed_oprimitive.hpp |  4 ++--
+ include/boost/mpi/detail/request_handlers.hpp  |  4 ++--
+ include/boost/mpi/graph_communicator.hpp       |  4 ++--
+ include/boost/mpi/group.hpp                    |  9 +++++----
+ include/boost/mpi/nonblocking.hpp              | 18 +++++++++---------
+ src/cartesian_communicator.cpp                 |  3 ++-
+ 16 files changed, 44 insertions(+), 42 deletions(-)
+
+diff --git a/include/boost/mpi/collectives/all_reduce.hpp b/include/boost/mpi/collectives/all_reduce.hpp
+index e6ce93c8..302430ff 100644
+--- a/boost/mpi/collectives/all_reduce.hpp
++++ b/boost/mpi/collectives/all_reduce.hpp
+@@ -77,7 +77,7 @@ namespace detail {
+       // implementation in this case.
+       // it's not clear how/if we can avoid the copy.
+       std::vector<T> tmp_in( out_values, out_values + n);
+-      reduce(comm, &(tmp_in[0]), n, out_values, op, 0);
++      reduce(comm, detail::c_data(tmp_in), n, out_values, op, 0);
+     } else {
+       reduce(comm, in_values, n, out_values, op, 0);
+     }
+diff --git a/include/boost/mpi/collectives/all_to_all.hpp b/include/boost/mpi/collectives/all_to_all.hpp
+index 4f20be73..a0af5ff3 100644
+--- a/boost/mpi/collectives/all_to_all.hpp
++++ b/boost/mpi/collectives/all_to_all.hpp
+@@ -91,10 +91,10 @@ namespace detail {
+ 
+     // Transmit the actual data
+     BOOST_MPI_CHECK_RESULT(MPI_Alltoallv,
+-                           (&outgoing[0], &send_sizes[0],
+-                            &send_disps[0], MPI_PACKED,
+-                            &incoming[0], &recv_sizes[0],
+-                            &recv_disps[0], MPI_PACKED,
++                           (detail::c_data(outgoing), detail::c_data(send_sizes),
++                            detail::c_data(send_disps), MPI_PACKED,
++                            detail::c_data(incoming), detail::c_data(recv_sizes),
++                            detail::c_data(recv_disps), MPI_PACKED,
+                             comm));
+ 
+     // Deserialize data from the iarchive
+@@ -126,7 +126,7 @@ all_to_all(const communicator& comm, const std::vector<T>& in_values,
+ {
+   BOOST_ASSERT((int)in_values.size() == comm.size());
+   out_values.resize(comm.size());
+-  ::boost::mpi::all_to_all(comm, &in_values[0], &out_values[0]);
++  ::boost::mpi::all_to_all(comm, detail::c_data(in_values), detail::c_data(out_values));
+ }
+ 
+ template<typename T>
+@@ -143,7 +143,7 @@ all_to_all(const communicator& comm, const std::vector<T>& in_values, int n,
+ {
+   BOOST_ASSERT((int)in_values.size() == comm.size() * n);
+   out_values.resize(comm.size() * n);
+-  ::boost::mpi::all_to_all(comm, &in_values[0], n, &out_values[0]);
++  ::boost::mpi::all_to_all(comm, detail::c_data(in_values), n, detail::c_data(out_values));
+ }
+ 
+ } } // end namespace boost::mpi
+diff --git a/include/boost/mpi/collectives/gatherv.hpp b/include/boost/mpi/collectives/gatherv.hpp
+index 6b8d706f..5fae9942 100644
+--- a/boost/mpi/collectives/gatherv.hpp
++++ b/boost/mpi/collectives/gatherv.hpp
+@@ -87,7 +87,7 @@ gatherv(const communicator& comm, const T* in_values, int in_size,
+ {
+   if (comm.rank() == root)
+     detail::gatherv_impl(comm, in_values, in_size,
+-                         out_values, &sizes[0], &displs[0],
++                         out_values, detail::c_data(sizes), detail::c_data(displs),
+                          root, is_mpi_datatype<T>());
+   else
+     detail::gatherv_impl(comm, in_values, in_size, root, is_mpi_datatype<T>());
+@@ -99,7 +99,7 @@ gatherv(const communicator& comm, const std::vector<T>& in_values,
+         T* out_values, const std::vector<int>& sizes, const std::vector<int>& displs,
+         int root)
+ {
+-  ::boost::mpi::gatherv(comm, &in_values[0], in_values.size(), out_values, sizes, displs, root);
++  ::boost::mpi::gatherv(comm, detail::c_data(in_values), in_values.size(), out_values, sizes, displs, root);
+ }
+ 
+ template<typename T>
+@@ -113,7 +113,7 @@ template<typename T>
+ void gatherv(const communicator& comm, const std::vector<T>& in_values, int root)
+ {
+   BOOST_ASSERT(comm.rank() != root);
+-  detail::gatherv_impl(comm, &in_values[0], in_values.size(), root, is_mpi_datatype<T>());
++  detail::gatherv_impl(comm, detail::c_data(in_values), in_values.size(), root, is_mpi_datatype<T>());
+ }
+ 
+ ///////////////////////
+@@ -139,7 +139,7 @@ void
+ gatherv(const communicator& comm, const std::vector<T>& in_values,
+         T* out_values, const std::vector<int>& sizes, int root)
+ {
+-  ::boost::mpi::gatherv(comm, &in_values[0], in_values.size(), out_values, sizes, root);
++  ::boost::mpi::gatherv(comm, detail::c_data(in_values), in_values.size(), out_values, sizes, root);
+ }
+ 
+ } } // end namespace boost::mpi
+diff --git a/include/boost/mpi/collectives/reduce.hpp b/include/boost/mpi/collectives/reduce.hpp
+index 3248e324..76a28212 100644
+--- a/boost/mpi/collectives/reduce.hpp
++++ b/boost/mpi/collectives/reduce.hpp
+@@ -335,7 +335,7 @@ void
+ reduce(const communicator & comm, std::vector<T> const & in_values, Op op,
+        int root)
+ {
+-  reduce(comm, &in_values.front(), in_values.size(), op, root);
++  reduce(comm, detail::c_data(in_values), in_values.size(), op, root);
+ }
+ 
+ template<typename T, typename Op>
+@@ -344,7 +344,7 @@ reduce(const communicator & comm, std::vector<T> const & in_values,
+        std::vector<T> & out_values, Op op, int root)
+ {
+   if (root == comm.rank()) out_values.resize(in_values.size());
+-  reduce(comm, &in_values.front(), in_values.size(), &out_values.front(), op,
++  reduce(comm, detail::c_data(in_values), in_values.size(), detail::c_data(out_values), op,
+          root);
+ }
+ 
+diff --git a/include/boost/mpi/collectives/scatter.hpp b/include/boost/mpi/collectives/scatter.hpp
+index ae3adcbc..f967060a 100644
+--- a/boost/mpi/collectives/scatter.hpp
++++ b/boost/mpi/collectives/scatter.hpp
+@@ -188,7 +188,7 @@ void
+ scatter(const communicator& comm, const std::vector<T>& in_values, 
+         T* out_values, int n, int root)
+ {
+-  ::boost::mpi::scatter(comm, &in_values[0], out_values, n, root);
++  ::boost::mpi::scatter(comm, detail::c_data(in_values), out_values, n, root);
+ }
+ 
+ template<typename T>
+diff --git a/include/boost/mpi/collectives/scatterv.hpp b/include/boost/mpi/collectives/scatterv.hpp
+index f53f704b..7f2fd129 100644
+--- a/boost/mpi/collectives/scatterv.hpp
++++ b/boost/mpi/collectives/scatterv.hpp
+@@ -142,7 +142,7 @@ void
+ scatterv(const communicator& comm, const std::vector<T>& in_values,
+          const std::vector<int>& sizes, T* out_values, int root)
+ {
+-  ::boost::mpi::scatterv(comm, &in_values[0], sizes, out_values, root);
++  ::boost::mpi::scatterv(comm, detail::c_data(in_values), sizes, out_values, root);
+ }
+ 
+ template<typename T>
+@@ -159,7 +159,7 @@ void
+ scatterv(const communicator& comm, const std::vector<T>& in_values,
+          T* out_values, int out_size, int root)
+ {
+-  ::boost::mpi::scatterv(comm, &in_values[0], out_values, out_size, root);
++  ::boost::mpi::scatterv(comm, detail::c_data(in_values), out_values, out_size, root);
+ }
+ 
+ } } // end namespace boost::mpi
+diff --git a/include/boost/mpi/detail/binary_buffer_iprimitive.hpp b/include/boost/mpi/detail/binary_buffer_iprimitive.hpp
+index 388cd44c..087d8529 100644
+--- a/boost/mpi/detail/binary_buffer_iprimitive.hpp
++++ b/boost/mpi/detail/binary_buffer_iprimitive.hpp
+@@ -41,12 +41,12 @@ class BOOST_MPI_DECL binary_buffer_iprimitive
+ 
+     void* address ()
+     {
+-      return &buffer_.front();
++      return detail::c_data(buffer_);
+     }
+ 
+     void const* address () const
+     {
+-      return &buffer_.front();
++      return detail::c_data(buffer_);
+     }
+ 
+     const std::size_t& size() const
+diff --git a/include/boost/mpi/detail/binary_buffer_oprimitive.hpp b/include/boost/mpi/detail/binary_buffer_oprimitive.hpp
+index 313097b7..fa0645d7 100644
+--- a/boost/mpi/detail/binary_buffer_oprimitive.hpp
++++ b/boost/mpi/detail/binary_buffer_oprimitive.hpp
+@@ -40,7 +40,7 @@ class BOOST_MPI_DECL binary_buffer_oprimitive
+ 
+     void const * address() const
+     {
+-      return &buffer_.front();
++      return detail::c_data(buffer_);
+     }
+ 
+     const std::size_t& size() const
+diff --git a/include/boost/mpi/detail/mpi_datatype_primitive.hpp b/include/boost/mpi/detail/mpi_datatype_primitive.hpp
+index fc05d786..5b3cdf54 100644
+--- a/boost/mpi/detail/mpi_datatype_primitive.hpp
++++ b/boost/mpi/detail/mpi_datatype_primitive.hpp
+@@ -133,7 +133,7 @@ class mpi_datatype_primitive
+     template <class T>
+     static T* get_data(std::vector<T>& v)
+     {
+-      return v.empty() ? 0 : &(v[0]);
++      return detail::c_data(v);
+     }
+ 
+     std::vector<MPI_Aint> addresses;
+diff --git a/include/boost/mpi/detail/packed_iprimitive.hpp b/include/boost/mpi/detail/packed_iprimitive.hpp
+index 85a4010f..e402a20a 100644
+--- a/boost/mpi/detail/packed_iprimitive.hpp
++++ b/boost/mpi/detail/packed_iprimitive.hpp
+@@ -39,12 +39,12 @@ class BOOST_MPI_DECL packed_iprimitive
+ 
+     void* address ()
+     {
+-      return &buffer_[0];
++      return detail::c_data(buffer_);
+     }
+ 
+     void const* address () const
+     {
+-      return &buffer_[0];
++      return detail::c_data(buffer_);
+     }
+ 
+     const std::size_t& size() const
+diff --git a/include/boost/mpi/detail/packed_oprimitive.hpp b/include/boost/mpi/detail/packed_oprimitive.hpp
+index 4ca8e072..c9ce44dc 100644
+--- a/boost/mpi/detail/packed_oprimitive.hpp
++++ b/boost/mpi/detail/packed_oprimitive.hpp
+@@ -38,7 +38,7 @@ class BOOST_MPI_DECL packed_oprimitive
+ 
+     void const * address() const
+     {
+-      return &buffer_[0];
++      return detail::c_data(buffer_);
+     }
+ 
+     const std::size_t& size() const
+@@ -114,7 +114,7 @@ class BOOST_MPI_DECL packed_oprimitive
+ 
+     static buffer_type::value_type* get_data(buffer_type& b)
+     {
+-      return b.empty() ? 0 : &(b[0]);
++      return detail::c_data(b);
+     }
+ 
+   buffer_type& buffer_;
+diff --git a/include/boost/mpi/detail/request_handlers.hpp b/include/boost/mpi/detail/request_handlers.hpp
+index 50a22ec3..8283918b 100644
+--- a/boost/mpi/detail/request_handlers.hpp
++++ b/boost/mpi/detail/request_handlers.hpp
+@@ -456,7 +456,7 @@ class request::legacy_dynamic_primitive_array_handler
+       // Resize our buffer and get ready to receive its data
+       this->extra::m_values.resize(this->extra::m_count);
+       BOOST_MPI_CHECK_RESULT(MPI_Irecv,
+-                             (&(this->extra::m_values[0]), this->extra::m_values.size(), get_mpi_datatype<T>(),
++                             (detail::c_data(this->extra::m_values), this->extra::m_values.size(), get_mpi_datatype<T>(),
+                               stat.source(), stat.tag(), 
+                               MPI_Comm(m_comm), m_requests + 1));
+     }
+@@ -478,7 +478,7 @@ class request::legacy_dynamic_primitive_array_handler
+         // Resize our buffer and get ready to receive its data
+         this->extra::m_values.resize(this->extra::m_count);
+         BOOST_MPI_CHECK_RESULT(MPI_Irecv,
+-                               (&(this->extra::m_values[0]), this->extra::m_values.size(), get_mpi_datatype<T>(),
++                               (detail::c_data(this->extra::m_values), this->extra::m_values.size(), get_mpi_datatype<T>(),
+                                 stat.source(), stat.tag(), 
+                                 MPI_Comm(m_comm), m_requests + 1));
+       } else
+diff --git a/include/boost/mpi/graph_communicator.hpp b/include/boost/mpi/graph_communicator.hpp
+index d49703eb..5bd1cf28 100644
+--- a/boost/mpi/graph_communicator.hpp
++++ b/boost/mpi/graph_communicator.hpp
+@@ -235,8 +235,8 @@ graph_communicator::setup_graph(const communicator& comm, const Graph& graph,
+   BOOST_MPI_CHECK_RESULT(MPI_Graph_create,
+                          ((MPI_Comm)comm, 
+                           nvertices,
+-                          &indices[0],
+-                          edges.empty()? (int*)0 : &edges[0],
++                          detail::c_data(indices),
++                          detail::c_data(edges),
+                           reorder,
+                           &newcomm));
+   this->comm_ptr.reset(new MPI_Comm(newcomm), comm_free());
+diff --git a/include/boost/mpi/group.hpp b/include/boost/mpi/group.hpp
+index 103b35a1..7be24df1 100644
+--- a/boost/mpi/group.hpp
++++ b/boost/mpi/group.hpp
+@@ -16,6 +16,7 @@
+ #define BOOST_MPI_GROUP_HPP
+ 
+ #include <boost/mpi/exception.hpp>
++#include <boost/mpi/detail/antiques.hpp>
+ #include <boost/shared_ptr.hpp>
+ #include <boost/optional.hpp>
+ #include <vector>
+@@ -272,9 +273,9 @@ group::translate_ranks(InputIterator first, InputIterator last,
+   BOOST_MPI_CHECK_RESULT(MPI_Group_translate_ranks,
+                          ((MPI_Group)*this,
+                           in_array.size(),
+-                          &in_array[0],
++                          detail::c_data(in_array),
+                           (MPI_Group)to_group,
+-                          &out_array[0]));
++                          detail::c_data(out_array)));
+ 
+   for (std::vector<int>::size_type i = 0, n = out_array.size(); i < n; ++i)
+     *out++ = out_array[i];
+@@ -300,7 +301,7 @@ group group::include(InputIterator first, InputIterator last)
+   std::vector<int> ranks(first, last);
+   MPI_Group result;
+   BOOST_MPI_CHECK_RESULT(MPI_Group_incl,
+-                         ((MPI_Group)*this, ranks.size(), &ranks[0], &result));
++                         ((MPI_Group)*this, ranks.size(), detail::c_data(ranks), &result));
+   return group(result, /*adopt=*/true);
+ }
+ 
+@@ -322,7 +323,7 @@ group group::exclude(InputIterator first, InputIterator last)
+   std::vector<int> ranks(first, last);
+   MPI_Group result;
+   BOOST_MPI_CHECK_RESULT(MPI_Group_excl,
+-                         ((MPI_Group)*this, ranks.size(), &ranks[0], &result));
++                         ((MPI_Group)*this, ranks.size(), detail::c_data(ranks), &result));
+   return group(result, /*adopt=*/true);
+ }
+ 
+diff --git a/include/boost/mpi/nonblocking.hpp b/include/boost/mpi/nonblocking.hpp
+index fe944be8..5ffd00f7 100644
+--- a/boost/mpi/nonblocking.hpp
++++ b/boost/mpi/nonblocking.hpp
+@@ -91,7 +91,7 @@ wait_any(ForwardIterator first, ForwardIterator last)
+         int index;
+         status stat;
+         BOOST_MPI_CHECK_RESULT(MPI_Waitany, 
+-                               (n, &requests[0], &index, &stat.m_status));
++                               (n, detail::c_data(requests), &index, &stat.m_status));
+ 
+         // We don't have a notion of empty requests or status objects,
+         // so this is an error.
+@@ -222,8 +222,8 @@ wait_all(ForwardIterator first, ForwardIterator last, OutputIterator out)
+       // Let MPI wait until all of these operations completes.
+       std::vector<MPI_Status> stats(num_outstanding_requests);
+       BOOST_MPI_CHECK_RESULT(MPI_Waitall, 
+-                             (num_outstanding_requests, &requests[0], 
+-                              &stats[0]));
++                             (num_outstanding_requests, detail::c_data(requests), 
++                              detail::c_data(stats)));
+ 
+       for (std::vector<MPI_Status>::iterator i = stats.begin(); 
+            i != stats.end(); ++i, ++out) {
+@@ -289,7 +289,7 @@ wait_all(ForwardIterator first, ForwardIterator last)
+ 
+       // Let MPI wait until all of these operations completes.
+       BOOST_MPI_CHECK_RESULT(MPI_Waitall, 
+-                             (num_outstanding_requests, &requests[0], 
++                             (num_outstanding_requests, detail::c_data(requests), 
+                               MPI_STATUSES_IGNORE));
+ 
+       // Signal completion
+@@ -346,7 +346,7 @@ test_all(ForwardIterator first, ForwardIterator last, OutputIterator out)
+   int flag = 0;
+   int n = requests.size();
+   std::vector<MPI_Status> stats(n);
+-  BOOST_MPI_CHECK_RESULT(MPI_Testall, (n, &requests[0], &flag, &stats[0]));
++  BOOST_MPI_CHECK_RESULT(MPI_Testall, (n, detail::c_data(requests), &flag, detail::c_data(stats)));
+   if (flag) {
+     for (int i = 0; i < n; ++i, ++out) {
+       status stat;
+@@ -379,7 +379,7 @@ test_all(ForwardIterator first, ForwardIterator last)
+   int flag = 0;
+   int n = requests.size();
+   BOOST_MPI_CHECK_RESULT(MPI_Testall, 
+-                         (n, &requests[0], &flag, MPI_STATUSES_IGNORE));
++                         (n, detail::c_data(requests), &flag, MPI_STATUSES_IGNORE));
+   return flag != 0;
+ }
+ 
+@@ -483,8 +483,8 @@ wait_some(BidirectionalIterator first, BidirectionalIterator last,
+         // Let MPI wait until some of these operations complete.
+         int num_completed;
+         BOOST_MPI_CHECK_RESULT(MPI_Waitsome, 
+-                               (n, &requests[0], &num_completed, &indices[0],
+-                                &stats[0]));
++                               (n, detail::c_data(requests), &num_completed, detail::c_data(indices),
++                                detail::c_data(stats)));
+ 
+         // Translate the index-based result of MPI_Waitsome into a
+         // partitioning on the requests.
+@@ -591,7 +591,7 @@ wait_some(BidirectionalIterator first, BidirectionalIterator last)
+         // Let MPI wait until some of these operations complete.
+         int num_completed;
+         BOOST_MPI_CHECK_RESULT(MPI_Waitsome, 
+-                               (n, &requests[0], &num_completed, &indices[0],
++                               (n, detail::c_data(requests), &num_completed, detail::c_data(indices),
+                                 MPI_STATUSES_IGNORE));
+ 
+         // Translate the index-based result of MPI_Waitsome into a
+diff --git a/src/cartesian_communicator.cpp b/src/cartesian_communicator.cpp
+index a46f0bc2..3b15eb0d 100644
+--- a/libs/mpi/src/cartesian_communicator.cpp
++++ b/libs/mpi/src/cartesian_communicator.cpp
+@@ -10,12 +10,13 @@
+ #include <cassert>
+ 
+ #include <boost/mpi/cartesian_communicator.hpp>
++#include <boost/mpi/detail/antiques.hpp>
+ 
+ namespace boost { namespace mpi {
+ 
+ namespace {
+   template <typename T, typename A>
+-  T* c_data(std::vector<T,A>& v) { return &(v[0]); }
++  T* c_data(std::vector<T,A>& v) { return c_data(v); }
+ }
+ 
+ std::ostream&
+
+From 5a8e9efe89ba00e32713fd777a82bc8f30a0900d Mon Sep 17 00:00:00 2001
+From: Florian Weik <fweik@icp.uni-stuttgart.de>
+Date: Wed, 10 Jun 2020 11:04:23 +0200
+Subject: [PATCH 2/4] added test with empty vector
+
+---
+ test/block_nonblock_test.cpp | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)
+
+diff --git a/test/block_nonblock_test.cpp b/test/block_nonblock_test.cpp
+index 3088b655..2ec02256 100644
+--- a/libs/mpi/test/block_nonblock_test.cpp
++++ b/libs/mpi/test/block_nonblock_test.cpp
+@@ -82,7 +82,12 @@ BOOST_AUTO_TEST_CASE(non_blocking)
+     fmt << "S" << i;
+     strings[i] = fmt.str();
+   }
+-  
++
++  std::vector<int> empty;
++
++  BOOST_CHECK(test(world, empty, false, true));
++  BOOST_CHECK(test(world, empty, false, false));
++
+   BOOST_CHECK(test(world, integers, true,  true));
+   BOOST_CHECK(test(world, integers, true,  false));
+   BOOST_CHECK(test(world, strings, true,  true));
+
+From 5e8edd184cb0d5af842392eb58dd797a23241615 Mon Sep 17 00:00:00 2001
+From: Florian Weik <fweik@icp.uni-stuttgart.de>
+Date: Thu, 11 Jun 2020 14:59:45 +0200
+Subject: [PATCH 4/4] fixed cartesian communicator
+
+---
+ src/cartesian_communicator.cpp | 17 ++++++-----------
+ 1 file changed, 6 insertions(+), 11 deletions(-)
+
+diff --git a/src/cartesian_communicator.cpp b/src/cartesian_communicator.cpp
+index 3b15eb0d..946d41fd 100644
+--- a/libs/mpi/src/cartesian_communicator.cpp
++++ b/libs/mpi/src/cartesian_communicator.cpp
+@@ -14,11 +14,6 @@
+ 
+ namespace boost { namespace mpi {
+ 
+-namespace {
+-  template <typename T, typename A>
+-  T* c_data(std::vector<T,A>& v) { return c_data(v); }
+-}
+-
+ std::ostream&
+ operator<<(std::ostream& out, cartesian_dimension const& d) {
+   out << '(' << d.size << ',';
+@@ -64,7 +59,7 @@ cartesian_communicator::cartesian_communicator(const communicator&         comm,
+   MPI_Comm newcomm;
+   BOOST_MPI_CHECK_RESULT(MPI_Cart_create, 
+                          ((MPI_Comm)comm, dims.size(),
+-                          c_data(dims), c_data(periodic),
++                          detail::c_data(dims), detail::c_data(periodic),
+                           int(reorder), &newcomm));
+   if(newcomm != MPI_COMM_NULL) {
+     comm_ptr.reset(new MPI_Comm(newcomm), comm_free());
+@@ -86,7 +81,7 @@ cartesian_communicator::cartesian_communicator(const cartesian_communicator& com
+   
+   MPI_Comm newcomm;
+   BOOST_MPI_CHECK_RESULT(MPI_Cart_sub, 
+-                         ((MPI_Comm)comm, c_data(bitset), &newcomm));
++                         ((MPI_Comm)comm, detail::c_data(bitset), &newcomm));
+   if(newcomm != MPI_COMM_NULL) {
+     comm_ptr.reset(new MPI_Comm(newcomm), comm_free());
+   }
+@@ -105,7 +100,7 @@ cartesian_communicator::rank(const std::vector<int>& coords ) const {
+   int r = -1;
+   assert(int(coords.size()) == ndims());
+   BOOST_MPI_CHECK_RESULT(MPI_Cart_rank, 
+-                         (MPI_Comm(*this), c_data(const_cast<std::vector<int>&>(coords)), 
++                         (MPI_Comm(*this), detail::c_data(const_cast<std::vector<int>&>(coords)), 
+                           &r));
+   return r;
+ }
+@@ -123,7 +118,7 @@ std::vector<int>
+ cartesian_communicator::coordinates(int rk) const {
+   std::vector<int> cbuf(ndims());
+   BOOST_MPI_CHECK_RESULT(MPI_Cart_coords, 
+-                         (MPI_Comm(*this), rk, cbuf.size(), c_data(cbuf) ));
++                         (MPI_Comm(*this), rk, cbuf.size(), detail::c_data(cbuf) ));
+   return cbuf;
+ }
+ 
+@@ -136,7 +131,7 @@ cartesian_communicator::topology(  cartesian_topology&  topo,
+   std::vector<int> cdims(ndims);
+   std::vector<int> cperiods(ndims);
+   BOOST_MPI_CHECK_RESULT(MPI_Cart_get,
+-                         (MPI_Comm(*this), ndims, c_data(cdims), c_data(cperiods), c_data(coords)));
++                         (MPI_Comm(*this), ndims, detail::c_data(cdims), detail::c_data(cperiods), detail::c_data(coords)));
+   cartesian_topology res(cdims.begin(), cperiods.begin(), ndims);
+   topo.swap(res);
+ }
+@@ -173,7 +168,7 @@ cartesian_dimensions(int sz, std::vector<int>&  dims) {
+   int leftover = sz % min;
+   
+   BOOST_MPI_CHECK_RESULT(MPI_Dims_create,
+-                         (sz-leftover, dims.size(), c_data(dims)));
++                         (sz-leftover, dims.size(), detail::c_data(dims)));
+   return dims;
+ }
+ 
